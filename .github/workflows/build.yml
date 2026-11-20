@@ -1,0 +1,51 @@
+name: Build WristNav IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Install ldid
+        run: |
+          brew install ldid || {
+            echo "brew 安装失败，尝试从源码编译"
+            git clone --depth 1 https://github.com/procursources/ldid.git /tmp/ldid-src
+            make -C /tmp/ldid-src
+            sudo cp /tmp/ldid-src/ldid /usr/local/bin/
+          }
+
+      - name: Verify toolchain
+        run: |
+          swiftc --version
+          xcrun --sdk iphoneos --show-sdk-path
+          ldid 2>&1 | head -3 || true
+
+      - name: Build IPA
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Verify IPA
+        run: |
+          ls -lh build/WristNav.ipa
+          unzip -l build/WristNav.ipa | head -20
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WristNav-IPA
+          path: build/WristNav.ipa
+          if-no-files-found: error
+          retention-days: 30
