@@ -45,8 +45,7 @@ final class NavigationEngine: NSObject, CLLocationManagerDelegate {
 
     func start(destination: MKMapItem) {
         state = .locating
-        NotificationBridge.shared.requestAuthorization { [weak self] granted in
-            guard let self = self else { return }
+        NotificationBridge.shared.requestAuthorization { granted in
             if !granted {
                 DispatchQueue.main.async {
                     self.state = .error("通知权限未开启，请在设置中允许")
@@ -93,9 +92,8 @@ final class NavigationEngine: NSObject, CLLocationManagerDelegate {
     private func doPlan(from origin: CLLocationCoordinate2D,
                         to dest: CLLocationCoordinate2D,
                         name: String) {
-        RoutePlanner.shared.plan(from: origin, to: dest, destinationName: name) { [weak self] result in
+        RoutePlanner.shared.plan(from: origin, to: dest, destinationName: name) { result in
             DispatchQueue.main.async {
-                guard let self = self else { return }
                 switch result {
                 case .failure(let error):
                     self.state = .error("路线规划失败: \(error.localizedDescription)")
@@ -221,9 +219,10 @@ final class NavigationEngine: NSObject, CLLocationManagerDelegate {
         guard Date().timeIntervalSince(lastReplanAt) > 60 else { return }
         lastReplanAt = Date()
 
-        RoutePlanner.shared.replan(from: location.coordinate, to: route) { [weak self] result in
+        // 一次性网络回调，直接强捕获 self（无循环引用风险），
+        // 避免 Swift 6 嵌套闭包中 weak self 被擦除为 NSObject 的问题
+        RoutePlanner.shared.replan(from: location.coordinate, to: route) { result in
             DispatchQueue.main.async {
-                guard let self = self else { return }
                 if case .success(let newRoute) = result {
                     self.currentRoute = newRoute
                     self.currentManeuverIndex = 0

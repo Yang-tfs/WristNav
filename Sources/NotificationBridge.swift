@@ -1,4 +1,5 @@
 import Foundation
+import CoreLocation
 import UserNotifications
 
 /// 通知桥：把转向信息写入 iOS 通知中心
