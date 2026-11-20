@@ -57,16 +57,35 @@ iOS 严格限制第三方 App 的后台定位与保活。TrollStore 安装的 Ap
 
 ## 编译安装
 
-### 环境要求
--一台 **macOS + Xcode** 的机器（可在云 Mac 上完成）
-- Homebrew 安装的 `ldid`
+### 构建方式：GitHub Actions（已配置完成）
 
-### 步骤
+本机是 Windows，无需 macOS 即可出包。仓库 `Yang-tfs/WristNav` 已配置好 `.github/workflows/build.yml`，使用 `macos-latest` runner 自动安装 Xcode 工具链与 ldid，产出 IPA 并上传为 artifact。
+
+**当前状态**：IPA 已成功构建并下载到本地 `WristNav.ipa`（97 KB，已验证结构与签名配置）。
+
+需要重新构建时（改了源码后）：
 
 ```bash
-cd WristNav
-chmod +x build.sh
-./build.sh
+# 1. 用 API 推送源码（本机 git 协议不可达，走 Git Data API）
+GITHUB_TOKEN=<token> python .workbuddy_api_push.py "提交说明"
+
+# 2. 触发 Actions（dispatch 返回 204 即成功）
+#    POST /repos/Yang-tfs/WristNav/actions/workflows/build.yml/dispatches
+
+# 3. 等待构建完成后下载 artifact
+#    GET /repos/Yang-tfs/WristNav/actions/artifacts/<id>/zip → 302 到 Azure SAS URL
+#    注意：Azure 不接受 gho_ token，需取重定向 Location 后不带 Authorization 下载
+```
+
+也可以在浏览器打开 `https://github.com/Yang-tfs/WristNav/actions`，手动点 Run workflow 触发，然后从 Artifacts 下载。
+
+### 本机编译（可选）
+
+若有 macOS + Xcode，直接：
+
+```bash
+brew install ldid
+chmod +x build.sh && ./build.sh
 ```
 
 产出 `build/WristNav.ipa`。
@@ -117,8 +136,18 @@ WristNav/
 │   ├── RoutePlanner.swift       # MapKit 路线规划
 │   ├── NotificationBridge.swift # 本地通知桥（ANCS 投递）
 │   └── Models.swift             # 数据模型
+├── .github/workflows/build.yml  # GitHub Actions 云编译配置
 ├── Info.plist                   # 权限声明
 ├── entitlements.plist           # TrollStore 伪签名权限
-├── build.sh                     # 一键编译脚本
+├── build.sh                     # 编译脚本（Actions 与本机共用）
+├── .workbuddy_api_push.py       # 绕开 git 协议的 API 推送工具
+├── .workbuddy_check_run.py      # 构建状态查询工具
+├── WristNav.ipa                 # 已构建的产物（可直接安装）
 └── README.md
 ```
+
+## 仓库与构建记录
+
+- 仓库：https://github.com/Yang-tfs/WristNav （public）
+- 最近成功构建：run `44757356383`，artifact id `14640330161`，conclusion `success`
+- 已验证：IPA 内含 `Payload/WristNav.app/WristNav`（arm64 可执行文件）+ Info.plist，后台模式 `location`/`audio` 声明正确
