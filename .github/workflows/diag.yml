@@ -1,9 +1,9 @@
-name: Diagnostics
+name: Diagnostics macOS
 on:
   workflow_dispatch:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - run: echo "Actions runner is working"
